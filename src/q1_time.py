@@ -71,9 +71,10 @@ def main():
     mem_usage = memory_usage((q1_time, (file_path,)), interval=1, timeout=None)
     print(f"Memoria utilizada: {max(mem_usage)} MB \nRESULTADO:")
 
-    print(result)
+    return result
 
 """
 if __name__ == "__main__":
-    main()
+    response = main()
+    print(response)
 """
