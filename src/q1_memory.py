@@ -1,63 +1,68 @@
 from typing import List, Tuple
 from datetime import datetime
 import json
-from collections import defaultdict, Counter
+from collections import Counter
 import cProfile
 import pstats
 from memory_profiler import memory_usage
 
 def q1_memory(file_path: str) -> List[Tuple[datetime.date, str]]:
     """
-    Encuentra las top 10 fechas con mas tweets y menciona el usuario con mas publicaciones en cada una de esas fechas.
+    Encuentra las top 10 fechas con más tweets y menciona el usuario con más publicaciones en cada una de esas fechas.
     
     Args:
         file_path (str): La ruta al archivo JSON que contiene los tweets.
     
     Returns:
-        List[Tuple[datetime.date, str]]: Una lista de tuplas, cada una con una fecha y el usuario que mas tweets publico en esa fecha.
+        List[Tuple[datetime.date, str]]: Una lista de tuplas, cada una con una fecha y el usuario que más tweets publicó en esa fecha.
     """
+    date_counter = Counter()
+    user_counter_per_date = {}
+
     try:
-        # Se usa un solo diccionario para mantener el conteo de tweets por usuario y fecha.
-        dates_dict = defaultdict(Counter)
-        
+        # Leer y procesar cada línea una vez
         with open(file_path, 'r', encoding='utf-8') as f:
-            # Se analiza linea por linea para optimizar el uso de memoria.
             for line in f:
-                tweet = json.loads(line)
-                tweet_date = tweet['date'].split('T')[0]
-                username = tweet['user']['username']
-                
-                # Se actualiza el contador de tweets escritos por un usuario en un dia.
-                dates_dict[tweet_date][username] += 1
-        
-        # Se ordenan las fechas segun el numero de tweets que se publicaron ese dia.
-        top_dates = sorted(dates_dict.keys(), key=lambda x: sum(dates_dict[x].values()), reverse=True)[:10]
-        
-        # Se obtiene el usuario con mayor cantidad de tweets para cada fecha segun el numero registrado en el contador.
-        top_users = [max(dates_dict[date], key=dates_dict[date].get) for date in top_dates]
-        
-        # Se pasan todas las fechas a formato datetime.date()
-        top_dates = [datetime.strptime(date_str, "%Y-%m-%d").date() for date_str in top_dates]
-        
-        return list(zip(top_dates, top_users))
+                try:
+                    tweet = json.loads(line)
+                    tweet_date = tweet['date'].split('T')[0]
+                    username = tweet['user']['username']
+
+                    # Contar fechas
+                    date_counter[tweet_date] += 1
+
+                    # Contar usuarios por fecha
+                    if tweet_date not in user_counter_per_date:
+                        user_counter_per_date[tweet_date] = Counter()
+                    user_counter_per_date[tweet_date][username] += 1
+                except json.JSONDecodeError:
+                    print("Error: No se pudo decodificar una línea del archivo JSON.")
+                except KeyError:
+                    print("Error: Una línea del archivo JSON no contiene las claves esperadas.")
+
+        # Obtener las 10 fechas más comunes
+        most_common_dates = date_counter.most_common(10)
+
+        # Obtener el usuario más común por cada una de las fechas más comunes
+        most_common_users = [user_counter_per_date[date[0]].most_common(1)[0][0] for date in most_common_dates]
+
+        # Convertir las fechas a formato datetime.date y agrupar resultados
+        return list(zip([datetime.strptime(date[0], "%Y-%m-%d").date() for date in most_common_dates], most_common_users))
     
     except FileNotFoundError:
-        print(f"Error: El archivo '{file_path}' no se encontro.")
-        return []
-    except json.JSONDecodeError:
-        print("Error: No se pudo decodificar el archivo JSON.")
+        print(f"Error: El archivo '{file_path}' no se encontró.")
         return []
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Error inesperado: {e}")
         return []
 
 def main():
     """
-    Funcion principal que ejecuta el analisis de los tweets, midiendo el tiempo de ejecucion y el uso de memoria.
+    Función principal que ejecuta el análisis de los tweets, midiendo el tiempo de ejecución y el uso de memoria.
     """
     file_path = 'farmers-protest-tweets-2021-2-4.json'
 
-    # Medir el tiempo de ejecucion con cProfile
+    # Medir el tiempo de ejecución con cProfile
     profiler = cProfile.Profile()
     profiler.enable()
 
@@ -69,7 +74,7 @@ def main():
 
     # Medir el uso de memoria
     mem_usage = memory_usage((q1_memory, (file_path,)), interval=1, timeout=None)
-    print(f"Memory usage: {max(mem_usage)} MB")
+    print(f"Memoria utilizada: {max(mem_usage)} MB \nRESULTADO:")
 
     print(result)
 
