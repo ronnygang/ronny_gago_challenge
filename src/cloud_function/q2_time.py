@@ -5,6 +5,7 @@ from emoji import emoji_list
 import cProfile
 import pstats
 from memory_profiler import memory_usage
+import utils.utils as helper
 
 def extract_emojis(text: str) -> List[str]:
     """
@@ -31,19 +32,21 @@ def q2_time(file_path: str) -> List[Tuple[str, int]]:
     emoji_counter = Counter()
     
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            for line in f:
-                try:
-                    tweet_content = json.loads(line)['content']
-                    
-                    # Extraer y contar los emojis directamente
-                    emojis = extract_emojis(tweet_content)
-                    emoji_counter.update(emojis)
+        # Descargar el contenido del archivo desde GCS
+        content = helper.download_file_from_gcs(file_path)
+
+        for line in content.splitlines():
+            try:
+                tweet_content = json.loads(line)['content']
                 
-                except json.JSONDecodeError:
-                    print("Error: No se pudo decodificar una línea del archivo JSON.")
-                except KeyError:
-                    print("Error: Una línea del archivo JSON no contiene las claves esperadas.")
+                # Extraer y contar los emojis directamente
+                emojis = extract_emojis(tweet_content)
+                emoji_counter.update(emojis)
+            
+            except json.JSONDecodeError:
+                print("Error: No se pudo decodificar una línea del archivo JSON.")
+            except KeyError:
+                print("Error: Una línea del archivo JSON no contiene las claves esperadas.")
         
         # Devolver los 10 emojis más comunes
         return emoji_counter.most_common(10)
@@ -55,11 +58,16 @@ def q2_time(file_path: str) -> List[Tuple[str, int]]:
         print(f"Error inesperado: {e}")
         return []
 
-def main():
+def main(file_path: str) -> List[Tuple[str, int]]:
     """
     Función principal que ejecuta el análisis de los tweets, midiendo el tiempo de ejecución y el uso de memoria.
+    
+    Args:
+        file_path (str): La ruta al archivo JSON que contiene los tweets.
+    
+    Returns:
+        List[Tuple[str, int]]: Una lista de tuplas, cada una con un emoji y el número de veces que fue usado.
     """
-    file_path = 'farmers-protest-tweets-2021-2-4.json'
 
     # Medir el tiempo de ejecución con cProfile
     profiler = cProfile.Profile()
@@ -79,6 +87,7 @@ def main():
 
 """
 if __name__ == "__main__":
-    response = main()
+    file_path = 'farmers-protest-tweets-2021-2-4.json'
+    response = main(file_path)
     print(response)
 """

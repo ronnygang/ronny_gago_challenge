@@ -5,6 +5,7 @@ from collections import Counter
 import cProfile
 import pstats
 from memory_profiler import memory_usage
+import utils.utils as helper
 
 def q1_memory(file_path: str) -> List[Tuple[datetime.date, str]]:
     """
@@ -20,25 +21,27 @@ def q1_memory(file_path: str) -> List[Tuple[datetime.date, str]]:
     user_counter_per_date = {}
 
     try:
+        # Descargar el contenido del archivo desde GCS
+        content = helper.download_file_from_gcs(file_path)
+
         # Leer y procesar cada línea una vez
-        with open(file_path, 'r', encoding='utf-8') as f:
-            for line in f:
-                try:
-                    tweet = json.loads(line)
-                    tweet_date = tweet['date'].split('T')[0]
-                    username = tweet['user']['username']
+        for line in content.splitlines():
+            try:
+                tweet = json.loads(line)
+                tweet_date = tweet['date'].split('T')[0]
+                username = tweet['user']['username']
 
-                    # Contar fechas
-                    date_counter[tweet_date] += 1
+                # Contar fechas
+                date_counter[tweet_date] += 1
 
-                    # Contar usuarios por fecha
-                    if tweet_date not in user_counter_per_date:
-                        user_counter_per_date[tweet_date] = Counter()
-                    user_counter_per_date[tweet_date][username] += 1
-                except json.JSONDecodeError:
-                    print("Error: No se pudo decodificar una línea del archivo JSON.")
-                except KeyError:
-                    print("Error: Una línea del archivo JSON no contiene las claves esperadas.")
+                # Contar usuarios por fecha
+                if tweet_date not in user_counter_per_date:
+                    user_counter_per_date[tweet_date] = Counter()
+                user_counter_per_date[tweet_date][username] += 1
+            except json.JSONDecodeError:
+                print("Error: No se pudo decodificar una línea del archivo JSON.")
+            except KeyError:
+                print("Error: Una línea del archivo JSON no contiene las claves esperadas.")
 
         # Obtener las 10 fechas más comunes
         most_common_dates = date_counter.most_common(10)
@@ -56,11 +59,16 @@ def q1_memory(file_path: str) -> List[Tuple[datetime.date, str]]:
         print(f"Error inesperado: {e}")
         return []
 
-def main():
+def main(file_path: str) -> List[Tuple[datetime.date, str]]:
     """
     Función principal que ejecuta el análisis de los tweets, midiendo el tiempo de ejecución y el uso de memoria.
-    """
-    file_path = 'farmers-protest-tweets-2021-2-4.json'
+    
+    Args:
+        file_path (str): La ruta al archivo JSON que contiene los tweets.
+
+    Returns:
+        List[Tuple[datetime.date, str]]: Una lista de tuplas, cada una con una fecha y el usuario que más tweets publicó en esa fecha.
+    """    
 
     # Medir el tiempo de ejecución con cProfile
     profiler = cProfile.Profile()
@@ -80,6 +88,7 @@ def main():
 
 """
 if __name__ == "__main__":
-    response = main()
+    file_path = 'farmers-protest-tweets-2021-2-4.json'
+    response = main(file_path)
     print(response)
 """

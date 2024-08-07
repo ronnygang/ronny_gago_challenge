@@ -5,6 +5,7 @@ from collections import defaultdict, Counter
 import cProfile
 import pstats
 from memory_profiler import memory_usage
+import utils.utils as helper
 
 def q1_time(file_path: str) -> List[Tuple[datetime.date, str]]:
     """
@@ -17,18 +18,20 @@ def q1_time(file_path: str) -> List[Tuple[datetime.date, str]]:
         List[Tuple[datetime.date, str]]: Una lista de tuplas, cada una con una fecha y el usuario que mas tweets publico en esa fecha.
     """
     try:
+        # Descargar el contenido del archivo desde GCS
+        content = helper.download_file_from_gcs(file_path)
+
         # Se usa un solo diccionario para mantener el conteo de tweets por usuario y fecha.
         dates_dict = defaultdict(Counter)
         
-        with open(file_path, 'r', encoding='utf-8') as f:
-            # Se analiza linea por linea para optimizar el uso de memoria.
-            for line in f:
-                tweet = json.loads(line)
-                tweet_date = tweet['date'].split('T')[0]
-                username = tweet['user']['username']
-                
-                # Se actualiza el contador de tweets escritos por un usuario en un dia.
-                dates_dict[tweet_date][username] += 1
+        # Se analiza linea por linea para optimizar el uso de memoria.
+        for line in content.splitlines():
+            tweet = json.loads(line)
+            tweet_date = tweet['date'].split('T')[0]
+            username = tweet['user']['username']
+            
+            # Se actualiza el contador de tweets escritos por un usuario en un dia.
+            dates_dict[tweet_date][username] += 1
         
         # Se ordenan las fechas segun el numero de tweets que se publicaron ese dia.
         top_dates = sorted(dates_dict.keys(), key=lambda x: sum(dates_dict[x].values()), reverse=True)[:10]
@@ -51,11 +54,16 @@ def q1_time(file_path: str) -> List[Tuple[datetime.date, str]]:
         print(f"Error: {e}")
         return []
 
-def main():
+def main(file_path: str) -> List[Tuple[datetime.date, str]]:
     """
     Funcion principal que ejecuta el analisis de los tweets, midiendo el tiempo de ejecucion y el uso de memoria.
+    
+    Args:
+        file_path (str): La ruta al archivo JSON que contiene los tweets.
+    
+    Returns:
+        List[Tuple[datetime.date, str]]: Una lista de tuplas, cada una con una fecha y el usuario que mas tweets publico en esa fecha.
     """
-    file_path = 'farmers-protest-tweets-2021-2-4.json'
 
     # Medir el tiempo de ejecucion con cProfile
     profiler = cProfile.Profile()
@@ -75,6 +83,7 @@ def main():
 
 """
 if __name__ == "__main__":
-    response = main()
+    file_path = 'farmers-protest-tweets-2021-2-4.json'
+    response = main(file_path)
     print(response)
 """

@@ -5,6 +5,7 @@ from emoji import emoji_list
 import cProfile
 import pstats
 from memory_profiler import memory_usage
+import utils.utils as helper
 
 def q3_memory(file_path: str) -> List[Tuple[str, int]]:
     """
@@ -19,22 +20,24 @@ def q3_memory(file_path: str) -> List[Tuple[str, int]]:
     users_counter = Counter()
     
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            for line in f:
-                try:
-                    tweet = json.loads(line)
-                    mentioned_users = tweet.get('mentionedUsers', [])
-                    
-                    if not mentioned_users:
-                        continue
-                    
-                    usernames = [user['username'] for user in mentioned_users]
-                    users_counter.update(usernames)
+        # Descargar el contenido del archivo desde GCS
+        content = helper.download_file_from_gcs(file_path)
+
+        for line in content.splitlines():
+            try:
+                tweet = json.loads(line)
+                mentioned_users = tweet.get('mentionedUsers', [])
                 
-                except json.JSONDecodeError:
-                    print("Error: No se pudo decodificar una línea del archivo JSON.")
-                except KeyError:
-                    print("Error: Una línea del archivo JSON no contiene las claves esperadas.")
+                if not mentioned_users:
+                    continue
+                
+                usernames = [user['username'] for user in mentioned_users]
+                users_counter.update(usernames)
+            
+            except json.JSONDecodeError:
+                print("Error: No se pudo decodificar una línea del archivo JSON.")
+            except KeyError:
+                print("Error: Una línea del archivo JSON no contiene las claves esperadas.")
         
         return users_counter.most_common(10)
     
@@ -45,11 +48,16 @@ def q3_memory(file_path: str) -> List[Tuple[str, int]]:
         print(f"Error inesperado: {e}")
         return []
 
-def main():
+def main(file_path: str) -> List[Tuple[str, int]]:
     """
     Función principal que ejecuta el análisis de los tweets, midiendo el tiempo de ejecución y el uso de memoria.
+    
+    Args:
+        file_path (str): La ruta al archivo JSON que contiene los tweets.
+    
+    Returns:
+        List[Tuple[str, int]]: Una lista de tuplas, cada una con un usuario y el número de veces que fue mencionado.
     """
-    file_path = 'farmers-protest-tweets-2021-2-4.json'
 
     # Medir el tiempo de ejecución con cProfile
     profiler = cProfile.Profile()
@@ -67,9 +75,9 @@ def main():
 
     return result
 
-
 """
 if __name__ == "__main__":
-    response = main()
+    file_path = 'farmers-protest-tweets-2021-2-4.json'
+    response = main(file_path)
     print(response)
 """
